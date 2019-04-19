@@ -1,0 +1,25 @@
+{
+    "name": "hap-server-authenticate-pam",
+    "version": "0.1.0",
+    "private": true,
+    "keywords": [
+        "hap-server-plugin"
+    ],
+    "main": "dist/index.js",
+    "engines": {
+        "hap-server": "^0.1.0",
+        "node": "^8.0.0"
+    },
+    "dependencies": {
+        "authenticate-pam": "^1.0.2",
+        "@babel/core": "^7.4.3",
+        "@babel/register": "^7.4.0",
+        "babel-preset-env": "^1.7.0",
+        "gulp": "^4.0.0",
+        "gulp-babel": "^8.0.0",
+        "pump": "^3.0.0"
+    },
+    "scripts": {
+        "install": "gulp build"
+    }
+}
