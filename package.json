@@ -1,6 +1,6 @@
 {
     "name": "@hap-server/authenticate-pam",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "keywords": [
         "hap-server-plugin"
     ],
@@ -15,7 +15,7 @@
     },
     "engines": {
         "hap-server": "^0.1.0",
-        "node": ">=8.0.0"
+        "node": ">=8.0.0 <12"
     },
     "dependencies": {
         "authenticate-pam": "^1.0.2"
