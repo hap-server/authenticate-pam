@@ -2,7 +2,7 @@
 
 import path from 'path';
 
-import hapserver, {AuthenticatedUser, AccessoryUI, log} from 'hap-server-api';
+import hapserver, {AuthenticationHandler, AuthenticatedUser, AccessoryUI, log} from 'hap-server-api';
 import storage from 'hap-server-api/storage';
 
 import pam from 'authenticate-pam';
@@ -11,11 +11,10 @@ const authenticate = (username, password, options) => new Promise((rs, rj) => pa
     err ? rj(err) : rs();
 }, options));
 
+const authentication_handler = new AuthenticationHandler('PAM');
 const authenticated_users = new Set();
 
-log.info('Loaded authenticate-pam');
-
-hapserver.registerAuthenticationHandler('PAM', async (request, previous_user) => {
+authentication_handler.handler = async (request, previous_user) => {
     // The first function receives any data sent from the UI
     // If a user is already authenticated the AuthenticatedUser object will be passed as the second object
     // It can return/throw anything to be sent back to the UI
@@ -52,14 +51,28 @@ hapserver.registerAuthenticationHandler('PAM', async (request, previous_user) =>
     authenticated_users.add(authenticated_user);
 
     return authenticated_user;
-}, (authenticated_user, disconnected) => {
+};
+
+// Set a reconnect handler to add the restored AuthenticatedUser to the authenticated_users set
+authentication_handler.reconnect_handler = data => {
+    const authenticated_user = new AuthenticatedUser(data.id, data.name);
+    authenticated_users.add(authenticated_user);
+
+    log.info('User', authenticated_user, 'reconnected');
+
+    return authenticated_user;
+};
+
+authentication_handler.disconnect_handler = (authenticated_user, disconnected) => {
     // The second function is called when an authenticated user disconnects or is reauthenticated
     // It doesn't need to return anything (it's return value is ignored)
 
     authenticated_users.delete(authenticated_user);
 
     log.info('User', authenticated_user, disconnected ? 'disconnected' : 'reauthenticated');
-});
+};
+
+hapserver.registerAuthenticationHandler(authentication_handler);
 
 const authentication_handler_ui = new AccessoryUI();
 
