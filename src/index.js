@@ -2,8 +2,8 @@
 
 import path from 'path';
 
-import hapserver, {AuthenticationHandler, AuthenticatedUser, AccessoryUI, log} from 'hap-server-api';
-import storage from 'hap-server-api/storage';
+import hapserver, {AuthenticationHandler, AuthenticatedUser, AccessoryUI, log} from '@hap-server/api';
+import storage from '@hap-server/api/storage';
 
 import pam from 'authenticate-pam';
 
