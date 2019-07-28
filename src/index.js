@@ -2,10 +2,11 @@
 
 import path from 'path';
 
-import hapserver, {AuthenticationHandler, AuthenticatedUser, AccessoryUI, log} from '@hap-server/api';
+import hapserver, {AuthenticationHandler, AuthenticatedUser, UserManagementHandler, AccessoryUI, log} from '@hap-server/api';
 import storage from '@hap-server/api/storage';
 
 import pam from 'authenticate-pam';
+import genuuid from 'uuid/v4';
 
 const authenticate = (username, password, options) => new Promise((rs, rj) => pam.authenticate(username, password, err => {
     err ? rj(err) : rs();
@@ -35,16 +36,17 @@ authentication_handler.handler = async (request, previous_user) => {
     await authenticate(request.username, request.password);
     const user = await storage.getItem(request.username) || {};
 
-    await storage.setItem(request.username, Object.assign(user, {
-        last_login: Date.now(),
-    }));
+    if (!user.id) user.id = genuuid();
+    user.last_login = Date.now();
 
-    if (!user.id) {
-        throw new Error('This user is not allowed to access this home. Add an ID for this user in ' +
-            'data/plugin-storage/authenticate-pam to allow this user to access this home.');
+    await storage.setItem(request.username, user);
+
+    if (!user.enabled) {
+        throw new Error('This user is not allowed to access this home.');
     }
 
     const authenticated_user = new AuthenticatedUser(user.id, user.name || request.username);
+    authenticated_user.username = request.username;
 
     if (request.remember) await authenticated_user.enableReauthentication();
 
@@ -54,8 +56,22 @@ authentication_handler.handler = async (request, previous_user) => {
 };
 
 // Set a reconnect handler to add the restored AuthenticatedUser to the authenticated_users set
-authentication_handler.reconnect_handler = data => {
-    const authenticated_user = new AuthenticatedUser(data.id, data.name);
+authentication_handler.reconnect_handler = async data => {
+    const user = await storage.getItem(data.username) || {};
+
+    if (!user.enabled) {
+        throw new Error('This user is not allowed to access this home.');
+    }
+
+    if (!user.id) {
+        user.id = genuuid();
+
+        await storage.setItem(request.username, user);
+    }
+
+    const authenticated_user = new AuthenticatedUser(data.id, user.name || data.username);
+    authenticated_user.username = data.username;
+
     authenticated_users.add(authenticated_user);
 
     log.info('User', authenticated_user, 'reconnected');
@@ -73,6 +89,44 @@ authentication_handler.disconnect_handler = (authenticated_user, disconnected) =
 };
 
 hapserver.registerAuthenticationHandler(authentication_handler);
+
+const user_management_handler = new UserManagementHandler('PAM');
+
+user_management_handler.handler = async (request, connection) => {
+    if (request.type === 'list-users') {
+        return storage.keys();
+    }
+
+    if (request.type === 'get-users') {
+        return Promise.all(request.usernames.map(async username => {
+            const user = await storage.getItem(username);
+
+            if (!user.id) {
+                user.id = genuuid();
+
+                await storage.setItem(username, user);
+            }
+
+            return user;
+        }));
+    }
+
+    if (request.type === 'save-user') {
+        const existing = await storage.getItem(request.username);
+        if (!existing) throw new Error('Unknown user.');
+
+        if (existing.id !== request.data.id) throw new Error('Cannot change user ID.');
+        if (request.data.last_login && existing.last_login !== request.data.last_login) throw new Error('Cannot change last login timestamp.');
+        if (existing.id === connection.authenticated_user.id && !request.data.enabled) throw new Error('You cannot disable the authenticated user.');
+
+        await storage.setItem(request.username, request.data);
+        return;
+    }
+
+    throw new Error('Invalid message.');
+};
+
+hapserver.registerUserManagementHandler(user_management_handler);
 
 const authentication_handler_ui = new AccessoryUI();
 
