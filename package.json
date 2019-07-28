@@ -1,6 +1,6 @@
 {
     "name": "@hap-server/authenticate-pam",
-    "version": "0.3.1",
+    "version": "0.4.0",
     "keywords": [
         "hap-server-plugin"
     ],
@@ -14,7 +14,7 @@
         "url": "https://gitlab.fancy.org.uk/hap-server/authenticate-pam.git"
     },
     "engines": {
-        "@hap-server/hap-server": "*",
+        "@hap-server/hap-server": ">=0.8.0",
         "node": ">=8.0.0 <12"
     },
     "files": [
