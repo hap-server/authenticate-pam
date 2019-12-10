@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "strict": true,
+        "target": "es6",
+        "esModuleInterop": true,
+        "experimentalDecorators": true,
+        "module": "commonjs",
+        "declaration": true,
+        "rootDir": "./src",
+        "outDir": "./dist"
+    }
+}

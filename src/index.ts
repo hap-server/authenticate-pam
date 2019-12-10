@@ -2,28 +2,35 @@
 
 import path from 'path';
 
-import hapserver, {AuthenticationHandler, AuthenticatedUser, UserManagementHandler, AccessoryUI, log} from '@hap-server/api';
+import hapserver, {
+    AuthenticationHandler, AuthenticatedUser, UserManagementHandler, WebInterfacePlugin, log,
+    Connection,
+} from '@hap-server/api';
 import storage from '@hap-server/api/storage';
 
-import pam from 'authenticate-pam';
+import pam, {AuthenticateOptions} from 'authenticate-pam';
 import genuuid from 'uuid/v4';
 
-const authenticate = (username, password, options) => new Promise((rs, rj) => pam.authenticate(username, password, err => {
-    err ? rj(err) : rs();
-}, options));
+const authenticate = (username: string, password: string, options?: AuthenticateOptions) => {
+    return new Promise((rs, rj) => pam.authenticate(username, password, err => err ? rj(err) : rs(), options));
+};
 
-const authentication_handler = new AuthenticationHandler('PAM');
+const authentication_handler = new AuthenticationHandler('PAM', () => null);
 const authenticated_users = new Set();
 
-authentication_handler.handler = async (request, previous_user) => {
+authentication_handler.handler = async (request: any, connection: Connection) => {
     // The first function receives any data sent from the UI
     // If a user is already authenticated the AuthenticatedUser object will be passed as the second object
     // It can return/throw anything to be sent back to the UI
     // When a user successfully authenticates it should return an AuthenticatedUser object
 
-    log.info('Authentication request', Object.assign({}, request, {password: null}), previous_user);
+    log.info('Authentication request', Object.assign({}, request, {password: null}), connection.authenticated_user);
 
-    const validation_errors = {};
+    const validation_errors: {
+        username?: string;
+        password?: string;
+        validation?: true;
+    } = {};
 
     if (!request.username) validation_errors.username = 'Enter your username.';
     if (!request.password) validation_errors.password = 'Enter your password.';
@@ -46,6 +53,8 @@ authentication_handler.handler = async (request, previous_user) => {
     }
 
     const authenticated_user = new AuthenticatedUser(user.id, user.name || request.username);
+
+    // @ts-ignore
     authenticated_user.username = request.username;
 
     if (request.remember) await authenticated_user.enableReauthentication();
@@ -66,10 +75,12 @@ authentication_handler.reconnect_handler = async data => {
     if (!user.id) {
         user.id = genuuid();
 
-        await storage.setItem(request.username, user);
+        await storage.setItem(data.username, user);
     }
 
     const authenticated_user = new AuthenticatedUser(data.id, user.name || data.username);
+
+    // @ts-ignore
     authenticated_user.username = data.username;
 
     authenticated_users.add(authenticated_user);
@@ -90,15 +101,15 @@ authentication_handler.disconnect_handler = (authenticated_user, disconnected) =
 
 hapserver.registerAuthenticationHandler(authentication_handler);
 
-const user_management_handler = new UserManagementHandler('PAM');
+const user_management_handler = new UserManagementHandler('PAM', () => null);
 
-user_management_handler.handler = async (request, connection) => {
+user_management_handler.handler = async (request: any, connection: Connection) => {
     if (request.type === 'list-users') {
         return storage.keys();
     }
 
     if (request.type === 'get-users') {
-        return Promise.all(request.usernames.map(async username => {
+        return Promise.all(request.usernames.map(async (username: string) => {
             const user = await storage.getItem(username);
 
             if (!user.id) {
@@ -113,11 +124,18 @@ user_management_handler.handler = async (request, connection) => {
 
     if (request.type === 'save-user') {
         const existing = await storage.getItem(request.username);
-        if (!existing) throw new Error('Unknown user.');
-
-        if (existing.id !== request.data.id) throw new Error('Cannot change user ID.');
-        if (request.data.last_login && existing.last_login !== request.data.last_login) throw new Error('Cannot change last login timestamp.');
-        if (existing.id === connection.authenticated_user.id && !request.data.enabled) throw new Error('You cannot disable the authenticated user.');
+        if (!existing) {
+            throw new Error('Unknown user.');
+        }
+        if (existing.id !== request.data.id) {
+            throw new Error('Cannot change user ID.');
+        }
+        if (request.data.last_login && existing.last_login !== request.data.last_login) {
+            throw new Error('Cannot change last login timestamp.');
+        }
+        if (existing.id === connection.authenticated_user!.id && !request.data.enabled) {
+            throw new Error('You cannot disable the authenticated user.');
+        }
 
         await storage.setItem(request.username, request.data);
         return;
@@ -128,9 +146,11 @@ user_management_handler.handler = async (request, connection) => {
 
 hapserver.registerUserManagementHandler(user_management_handler);
 
-const authentication_handler_ui = new AccessoryUI();
+const authentication_handler_ui = new WebInterfacePlugin();
 
 authentication_handler_ui.loadScript('/index.js');
 authentication_handler_ui.static('/', path.join(__dirname, 'ui'));
 
-hapserver.registerAccessoryUI(authentication_handler_ui);
+// TODO: fix this
+// @ts-ignore
+hapserver.registerWebInterfacePlugin(authentication_handler_ui);

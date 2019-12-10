@@ -21,16 +21,14 @@
         "dist"
     ],
     "dependencies": {
-        "authenticate-pam": "^1.0.2",
-        "uuid": "^3.3.2"
+        "authenticate-pam": "github:WeiAnAn/node-authenticate-pam",
+        "uuid": "^3.3.3"
     },
     "devDependencies": {
-        "@babel/core": "^7.4.4",
-        "@babel/preset-env": "^7.4.4",
-        "@babel/register": "^7.4.4",
-        "gulp": "^4.0.1",
-        "gulp-babel": "^8.0.0",
-        "pump": "^3.0.0"
+        "@hap-server/api": "^0.10.4",
+        "@hap-server/ui-api": "^0.10.4",
+        "@types/uuid": "^3.4.6",
+        "typescript": "^3.7.3"
     },
     "publishConfig": {
         "access": "public"

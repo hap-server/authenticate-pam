@@ -1,8 +1,8 @@
 
-import accessoryui, {
+import uiplugin, {
     AuthenticationHandlerConnection, AuthenticatedUser,
-    UserManagementHandler as BaseUserManagementHandler, UserManagementUser,
-} from '@hap-server/accessory-ui-api';
+    UserManagementHandler as BaseUserManagementHandler, UserManagementUser, UserManagementConnection,
+} from '@hap-server/ui-api';
 
 const AuthenticationHandlerComponent = {
     template: `<div class="authentication-handler authentication-handler-pam">
@@ -61,12 +61,12 @@ const AuthenticationHandlerComponent = {
         };
     },
     watch: {
-        authenticating(authenticating) {
+        authenticating(this: any, authenticating: boolean) {
             this.$emit('authenticating', authenticating);
         },
     },
     methods: {
-        async authenticate() {
+        async authenticate(this: any) {
             if (this.authenticating) throw new Error('Already authenticating');
             this.authenticating = true;
             this.error = null;
@@ -93,7 +93,7 @@ const AuthenticationHandlerComponent = {
     },
 };
 
-accessoryui.registerAuthenticationHandlerComponent('PAM', AuthenticationHandlerComponent, 'Host users');
+uiplugin.registerAuthenticationHandlerComponent('PAM', AuthenticationHandlerComponent, 'Host users');
 
 const UserManagementComponent = {
     template: `<div class="user-management user-management-pam">
@@ -149,10 +149,11 @@ const UserManagementComponent = {
         <pre class="selectable" style="font-size: 10px;"><code>{{ JSON.stringify(user, null, 4) }}</code></pre>
     </div>`,
     props: {
-        userManagementHandler: BaseUserManagementHandler,
+        // userManagementHandler: BaseUserManagementHandler,
         user: UserManagementUser,
+        userManagementHandler: UserManagementConnection,
     },
-    data() {
+    data(this: any) {
         return {
             saving: false,
             error: null,
@@ -162,26 +163,26 @@ const UserManagementComponent = {
         };
     },
     computed: {
-        changed() {
+        changed(this: any) {
             if (this.name !== this.user.name) return true;
             if (this.enabled !== this.user.data.enabled) return true;
 
             return false;
         },
-        last_login() {
+        last_login(this: any) {
             return new Date(this.user.data.last_login);
         },
     },
     watch: {
-        changed(changed) {
+        changed(this: any, changed: boolean) {
             this.$emit('changed', changed);
         },
-        saving(saving) {
+        saving(this: any, saving: boolean) {
             this.$emit('saving', saving);
         },
     },
     methods: {
-        async save() {
+        async save(this: any) {
             if (this.saving) throw new Error('Already saving');
             this.saving = true;
             this.error = null;
@@ -214,10 +215,11 @@ class UserManagementHandler extends BaseUserManagementHandler {
         const usernames = await this.connection.send({type: 'list-users'});
         const users = await this.connection.send({type: 'get-users', usernames});
 
-        return users.map((data, index) => {
+        return users.map((data: any, index: number) => {
             const username = usernames[index];
 
-            const user = new UserManagementUser(this, data.id);
+            // @ts-ignore
+            const user = new UserManagementUser(this.connection, data.id);
             user.username = username;
             user.name = data.name;
             user.data = data;
@@ -226,6 +228,9 @@ class UserManagementHandler extends BaseUserManagementHandler {
     }
 }
 
+// @ts-ignore
 UserManagementHandler.component = UserManagementComponent;
 
-accessoryui.registerUserManagementHandler('PAM', UserManagementHandler, 'Host users');
+// TODO: fix this
+// @ts-ignore
+uiplugin.registerUserManagementHandler('PAM', UserManagementHandler, 'Host users');
