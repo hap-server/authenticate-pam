@@ -18,13 +18,14 @@ build:
     artifacts:
         paths:
             - dist
+    needs: []
 
 publish-npm:
     stage: deploy
     script:
         - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
         - npm --color="always" publish
-    dependencies:
+    needs:
         - build
     only:
         refs:
@@ -43,13 +44,33 @@ publish-github:
     script:
         - echo "//npm.pkg.github.com/:_authToken=${GITHUB_NPM_TOKEN}" > .npmrc
         - npm --color="always" --registry=https://npm.pkg.github.com/ publish
-    dependencies:
+    needs:
         - build
     only:
         refs:
             - /^v.*$/
         variables:
             - $GITHUB_NPM_TOKEN
+    except:
+        - branches
+    cache:
+        paths:
+            - node_modules/
+        policy: pull
+    allow_failure: true
+
+publish-gitlab:
+    stage: deploy
+    script:
+        - echo "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}" | sed s/^https:// > .npmrc
+        - npm --color="always" --registry=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/ publish
+    needs:
+        - build
+    only:
+        refs:
+            - /^v.*$/
+        variables:
+            - $GITLAB_NPM_PUBLISH
     except:
         - branches
     cache:
