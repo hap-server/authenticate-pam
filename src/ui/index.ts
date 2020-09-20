@@ -210,16 +210,21 @@ const UserManagementComponent = {
     },
 };
 
+class User extends UserManagementUser {
+    username: string | null = null;
+    name: string | null = null;
+    data: any = null;
+}
+
 class UserManagementHandler extends BaseUserManagementHandler {
     async getUsers() {
-        const usernames = await this.connection.send({type: 'list-users'});
-        const users = await this.connection.send({type: 'get-users', usernames});
+        const usernames: string[] = await this.connection.send({type: 'list-users'});
+        const users: any[] = await this.connection.send({type: 'get-users', usernames});
 
-        return users.map((data: any, index: number) => {
+        return users.map((data, index) => {
             const username = usernames[index];
 
-            // @ts-ignore
-            const user = new UserManagementUser(this.connection, data.id);
+            const user = new User(this.connection, data.id);
             user.username = username;
             user.name = data.name;
             user.data = data;
@@ -228,9 +233,6 @@ class UserManagementHandler extends BaseUserManagementHandler {
     }
 }
 
-// @ts-ignore
 UserManagementHandler.component = UserManagementComponent;
 
-// TODO: fix this
-// @ts-ignore
 uiplugin.registerUserManagementHandler('PAM', UserManagementHandler, 'Host users');

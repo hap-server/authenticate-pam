@@ -9,7 +9,7 @@ import hapserver, {
 import storage from '@hap-server/api/storage';
 
 import pam, {AuthenticateOptions} from 'authenticate-pam';
-import genuuid from 'uuid/v4';
+import {v4 as genuuid} from 'uuid';
 
 const authenticate = (username: string, password: string, options?: AuthenticateOptions) => {
     return new Promise((rs, rj) => pam.authenticate(username, password, err => err ? rj(err) : rs(), options));
@@ -54,7 +54,6 @@ authentication_handler.handler = async (request: any, connection: Connection) =>
 
     const authenticated_user = new AuthenticatedUser(user.id, user.name || request.username);
 
-    // @ts-ignore
     authenticated_user.username = request.username;
 
     if (request.remember) await authenticated_user.enableReauthentication();
@@ -80,7 +79,6 @@ authentication_handler.reconnect_handler = async data => {
 
     const authenticated_user = new AuthenticatedUser(data.id, user.name || data.username);
 
-    // @ts-ignore
     authenticated_user.username = data.username;
 
     authenticated_users.add(authenticated_user);
@@ -151,6 +149,4 @@ const authentication_handler_ui = new WebInterfacePlugin();
 authentication_handler_ui.loadScript('/index.js');
 authentication_handler_ui.static('/', path.join(__dirname, 'ui'));
 
-// TODO: fix this
-// @ts-ignore
 hapserver.registerWebInterfacePlugin(authentication_handler_ui);
